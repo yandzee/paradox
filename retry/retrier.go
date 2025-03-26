@@ -1,6 +1,11 @@
 package retry
 
-import "github.com/yandzee/paradox/clock"
+import (
+	"context"
+	"errors"
+
+	"github.com/yandzee/paradox/clock"
+)
 
 type Retrier struct {
 	Backoff Backoff
@@ -14,30 +19,43 @@ type RetryContext struct {
 }
 
 func New(b Backoff, d Decider) *Retrier {
+	return NewClock(b, d, clock.Std)
+}
+
+func NewClock(b Backoff, d Decider, c clock.Clock) *Retrier {
 	return &Retrier{
 		Backoff: b,
 		Decider: d,
+		Clock:   c,
 	}
 }
 
-func (r *Retrier) Do(fn func(*RetryContext) error) error {
-	ctx := &RetryContext{}
+func (r *Retrier) Do(ctx context.Context, fn func(*RetryContext) error) error {
+	rctx := &RetryContext{}
 
 	for {
-		ctx.LastError = fn(ctx)
+		rctx.LastError = fn(rctx)
 
-		switch r.Decider.Decide(ctx) {
+		switch r.Decider.Decide(rctx) {
 		case Fail:
-			return ctx.LastError
+			return rctx.LastError
 		case Finish:
 			return nil
-		case Retry:
-			break
 		default:
 			break
 		}
 
-		r.Clock.Sleep(r.Backoff.Duration(ctx.Attempt))
-		ctx.Attempt += 1
+		ch := r.Clock.SleepChannel(r.Backoff.Duration(rctx.Attempt))
+		if ctx != nil {
+			select {
+			case <-ch:
+			case <-ctx.Done():
+				return errors.Join(ctx.Err(), rctx.LastError)
+			}
+		} else {
+			<-ch
+		}
+
+		rctx.Attempt += 1
 	}
 }
