@@ -46,6 +46,7 @@ func (mc *MockClock) SleepChannel(d time.Duration) <-chan time.Time {
 func (mc *MockClock) Advance(d int64) int64 {
 	mc.Lock()
 	mc.Current += d
+	now := time.Unix(0, mc.Current)
 
 	for targetTime, waiters := range mc.waiters {
 		if targetTime > mc.Current {
@@ -53,7 +54,32 @@ func (mc *MockClock) Advance(d int64) int64 {
 		}
 
 		for _, waiter := range waiters {
-			waiter <- time.Unix(0, mc.Current)
+			waiter <- now
+		}
+
+		delete(mc.waiters, targetTime)
+	}
+
+	mc.Unlock()
+	return mc.Current
+}
+
+func (mc *MockClock) FastForward() int64 {
+	mc.Lock()
+	maxTime := mc.Current
+
+	for targetTime := range mc.waiters {
+		if targetTime > maxTime {
+			maxTime = targetTime
+		}
+	}
+
+	mc.Current = maxTime
+	now := time.Unix(0, maxTime)
+
+	for targetTime, waiters := range mc.waiters {
+		for _, waiter := range waiters {
+			waiter <- now
 		}
 
 		delete(mc.waiters, targetTime)
