@@ -8,9 +8,9 @@ import (
 )
 
 type Retrier struct {
-	Backoff Backoff
-	Decider Decider
-	Clock   clock.Clock
+	Backoff  Backoff
+	Decider  Decider
+	Clock    clock.Clock
 }
 
 type RetryContext struct {
@@ -39,12 +39,13 @@ func (r *Retrier) Do(ctx context.Context, fn func(*RetryContext) error) error {
 		switch r.Decider.Decide(rctx) {
 		case Fail:
 			return rctx.LastError
-		case Finish:
+		case Success:
 			return nil
 		default:
 			break
 		}
 
+		// Sleep handling
 		ch := r.Clock.SleepChannel(r.Backoff.Duration(rctx.Attempt))
 		if ctx != nil {
 			select {
