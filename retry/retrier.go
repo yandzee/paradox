@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 
+	"github.com/yandzee/paradox/backoff"
 	"github.com/yandzee/paradox/clock"
 )
 
 type Retrier struct {
-	Backoff  Backoff
-	Decider  Decider
-	Clock    clock.Clock
+	Backoff backoff.Backoff
+	Decider Decider
+	Clock   clock.Clock
 }
 
 type RetryContext struct {
@@ -18,11 +19,11 @@ type RetryContext struct {
 	LastError error
 }
 
-func New(b Backoff, d Decider) *Retrier {
+func New(b backoff.Backoff, d Decider) *Retrier {
 	return NewClock(b, d, clock.Std)
 }
 
-func NewClock(b Backoff, d Decider, c clock.Clock) *Retrier {
+func NewClock(b backoff.Backoff, d Decider, c clock.Clock) *Retrier {
 	return &Retrier{
 		Backoff: b,
 		Decider: d,
