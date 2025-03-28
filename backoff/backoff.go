@@ -15,5 +15,5 @@ func Jitter(base, factor float64) float64 {
 	// b := 2 * a - 1 gives a num in [-1, -1)
 	// c := b * factor gives a num in [-factor, +factor)
 
-	return base + base*(2*rand.Float64()-1)*factor
+	return base*(2*rand.Float64()-1)*factor
 }
