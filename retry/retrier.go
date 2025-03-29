@@ -47,7 +47,7 @@ func (r *Retrier) Do(ctx context.Context, fn func(*RetryContext) error) error {
 		}
 
 		// Sleep handling
-		ch := r.Clock.SleepChannel(r.Backoff.Duration(rctx.Attempt))
+		ch := r.Clock.After(r.Backoff.Duration(rctx.Attempt))
 		if ctx != nil {
 			select {
 			case <-ch:

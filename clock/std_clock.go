@@ -12,6 +12,6 @@ func (sc *StdClock) Sleep(d time.Duration) {
 	time.Sleep(d)
 }
 
-func (sc *StdClock) SleepChannel(d time.Duration) <-chan time.Time {
+func (sc *StdClock) After(d time.Duration) <-chan time.Time {
 	return time.After(d)
 }

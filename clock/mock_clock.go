@@ -6,7 +6,7 @@ import (
 )
 
 type MockClock struct {
-	sync.RWMutex
+	mx sync.RWMutex
 
 	Current int64
 	waiters waitersMap
@@ -15,20 +15,20 @@ type MockClock struct {
 type waitersMap map[int64][]chan time.Time
 
 func (mc *MockClock) Now() (t int64) {
-	mc.RLock()
+	mc.mx.RLock()
 	t = mc.Current
-	mc.RUnlock()
+	mc.mx.RUnlock()
 
 	return t
 }
 
 func (mc *MockClock) Sleep(d time.Duration) {
-	ch := mc.SleepChannel(d)
+	ch := mc.After(d)
 	<-ch
 }
 
-func (mc *MockClock) SleepChannel(d time.Duration) <-chan time.Time {
-	mc.Lock()
+func (mc *MockClock) After(d time.Duration) <-chan time.Time {
+	mc.mx.Lock()
 
 	waiter := make(chan time.Time, 1)
 	targetTime := mc.Current + d.Nanoseconds()
@@ -39,13 +39,13 @@ func (mc *MockClock) SleepChannel(d time.Duration) <-chan time.Time {
 
 	mc.waiters[targetTime] = append(mc.waiters[targetTime], waiter)
 
-	mc.Unlock()
+	mc.mx.Unlock()
 	return waiter
 }
 
-func (mc *MockClock) Advance(d int64) int64 {
-	mc.Lock()
-	mc.Current += d
+func (mc *MockClock) Advance(d time.Duration) int64 {
+	mc.mx.Lock()
+	mc.Current += d.Nanoseconds()
 	now := time.Unix(0, mc.Current)
 
 	for targetTime, waiters := range mc.waiters {
@@ -60,12 +60,12 @@ func (mc *MockClock) Advance(d int64) int64 {
 		delete(mc.waiters, targetTime)
 	}
 
-	mc.Unlock()
+	mc.mx.Unlock()
 	return mc.Current
 }
 
 func (mc *MockClock) FastForward() int64 {
-	mc.Lock()
+	mc.mx.Lock()
 	maxTime := mc.Current
 
 	for targetTime := range mc.waiters {
@@ -85,6 +85,6 @@ func (mc *MockClock) FastForward() int64 {
 		delete(mc.waiters, targetTime)
 	}
 
-	mc.Unlock()
+	mc.mx.Unlock()
 	return mc.Current
 }
