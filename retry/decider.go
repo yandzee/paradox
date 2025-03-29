@@ -35,3 +35,16 @@ func (dd *CustomDecider) Decide(rctx *RetryContext) Decision {
 		return Retry
 	}
 }
+
+func (d Decision) String() string {
+	switch d {
+	case Retry:
+		return "Retry"
+	case Fail:
+		return "Fail"
+	case Success:
+		return "Success"
+	}
+
+	return "Unknown"
+}
