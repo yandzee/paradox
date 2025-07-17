@@ -43,7 +43,6 @@ func (r *Retrier) Do(ctx context.Context, fn func(*RetryContext) error) error {
 		case Success:
 			return nil
 		default:
-			break
 		}
 
 		// Sleep handling

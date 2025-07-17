@@ -1,50 +1,51 @@
 package retry
 
-type Decision int
-
-const (
-	Retry Decision = iota
-	Fail
-	Success
-)
-
 const InfiniteAttempts = 0
-
-var DefaultDecider = &CustomDecider{
-	Attempts: 5,
-}
 
 type Decider interface {
 	Decide(c *RetryContext) Decision
 }
 
+type DecideFn func(*RetryContext) Decision
+
 type CustomDecider struct {
-	Attempts    int
-	DecideError func(error) Decision
+	DecideFn DecideFn
 }
 
 func (dd *CustomDecider) Decide(rctx *RetryContext) Decision {
-	switch {
-	case rctx.LastError == nil:
-		return Success
-	case dd.Attempts != InfiniteAttempts && rctx.Attempt >= dd.Attempts:
-		return Fail
-	case dd.DecideError != nil:
-		return dd.DecideError(rctx.LastError)
-	default:
-		return Retry
+	return dd.DecideFn(rctx)
+}
+
+func NewDecider(fn DecideFn) Decider {
+	return &CustomDecider{
+		DecideFn: fn,
 	}
 }
 
-func (d Decision) String() string {
-	switch d {
-	case Retry:
-		return "Retry"
-	case Fail:
-		return "Fail"
-	case Success:
-		return "Success"
-	}
+func NewAttemptsDecider(maxAttemptIndex int) Decider {
+	return NewDecider(func(rctx *RetryContext) Decision {
+		switch {
+		case rctx.LastError == nil:
+			return Success
+		case maxAttemptIndex != InfiniteAttempts && rctx.Attempt >= maxAttemptIndex:
+			return Fail
+		default:
+			return Retry
+		}
+	})
+}
 
-	return "Unknown"
+func NewAttemptsErrDecider(maxAttemptIndex int, errFn func(error) Decision) Decider {
+	return NewDecider(func(rctx *RetryContext) Decision {
+		switch {
+		case rctx.LastError == nil:
+			return Success
+		case maxAttemptIndex != InfiniteAttempts && rctx.Attempt >= maxAttemptIndex:
+			return Fail
+		case errFn != nil:
+			return errFn(rctx.LastError)
+		default:
+			return Retry
+		}
+	})
 }

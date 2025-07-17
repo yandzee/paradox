@@ -269,10 +269,10 @@ func runDeciderTests(t *testing.T, descs []DeciderTestDescriptor) {
 		t.Run(
 			fmt.Sprintf("Decider test %d", i),
 			func(t *testing.T) {
-				decider := &retry.CustomDecider{
-					Attempts:    td.Attempts,
-					DecideError: td.DecideFn,
-				}
+				decider := retry.NewAttemptsErrDecider(
+					td.Attempts,
+					td.DecideFn,
+				)
 
 				rctx := &retry.RetryContext{
 					Attempt:   td.Attempt,
