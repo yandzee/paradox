@@ -49,3 +49,16 @@ func NewAttemptsErrDecider(maxAttemptIndex int, errFn func(error) Decision) Deci
 		}
 	})
 }
+
+func NewErrDecider(errFn func(error) Decision) Decider {
+	return NewDecider(func(rctx *RetryContext) Decision {
+		switch {
+		case rctx.LastError == nil:
+			return Success
+		case errFn != nil:
+			return errFn(rctx.LastError)
+		default:
+			return Retry
+		}
+	})
+}
