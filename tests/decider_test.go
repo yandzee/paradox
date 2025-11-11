@@ -9,9 +9,9 @@ import (
 )
 
 var (
-	ErrTest1   = errors.New("Test error 1")
-	ErrTest2   = errors.New("Test error 2")
-	ErrWrapped = errors.Join(ErrTest2, errors.New("Wrapped error"))
+	ErrTest1   = errors.New("test error 1")
+	ErrTest2   = errors.New("test error 2")
+	ErrWrapped = errors.Join(ErrTest2, errors.New("wrapped error"))
 )
 
 type DeciderTestDescriptor struct {
