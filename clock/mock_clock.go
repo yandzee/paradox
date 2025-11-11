@@ -6,9 +6,12 @@ import (
 )
 
 type MockClock struct {
-	mx sync.RWMutex
-
 	Current int64
+
+	// NOTE: If set, every waiter creation advances current time to its desired value
+	AutoFastForward bool
+
+	mx      sync.RWMutex
 	waiters waitersMap
 }
 
@@ -33,11 +36,7 @@ func (mc *MockClock) After(d time.Duration) <-chan time.Time {
 	waiter := make(chan time.Time, 1)
 	targetTime := mc.Current + d.Nanoseconds()
 
-	if mc.waiters == nil {
-		mc.waiters = make(waitersMap)
-	}
-
-	mc.waiters[targetTime] = append(mc.waiters[targetTime], waiter)
+	mc.handleWaiter(waiter, targetTime)
 
 	mc.mx.Unlock()
 	return waiter
@@ -87,4 +86,21 @@ func (mc *MockClock) FastForward() int64 {
 
 	mc.mx.Unlock()
 	return mc.Current
+}
+
+func (mc *MockClock) handleWaiter(waiter chan time.Time, targetTime int64) {
+	if mc.waiters == nil {
+		mc.waiters = make(waitersMap)
+	}
+
+	if !mc.AutoFastForward {
+		mc.waiters[targetTime] = append(mc.waiters[targetTime], waiter)
+		return
+	}
+
+	if targetTime > mc.Current {
+		mc.Current = targetTime
+	}
+
+	waiter <- time.Unix(0, mc.Current)
 }

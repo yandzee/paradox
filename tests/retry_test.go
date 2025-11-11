@@ -21,6 +21,7 @@ var TestDecider = retry.NewAttemptsDecider(retry.InfiniteAttempts)
 type TestDescriptor struct {
 	DoReturns []DoReturn
 	Error     error
+	Time      int64
 	Backoff   backoff.Backoff
 	Decider   retry.Decider
 }
@@ -34,9 +35,47 @@ func TestManualDurationSet(t *testing.T) {
 	runTests(t, []TestDescriptor{
 		{
 			DoReturns: []DoReturn{
-				{100 * time.Second, ErrTest},
 				{0, nil},
 			},
+			Time: int64(0 * time.Second),
+		},
+		{
+			DoReturns: []DoReturn{
+				{2 * time.Second, ErrTest},
+				{0, nil},
+			},
+			Time: int64(2 * time.Second),
+		},
+		{
+			DoReturns: []DoReturn{
+				{0, ErrTest},
+				{2 * time.Second, ErrTest},
+				{0, nil},
+			},
+			Time: int64(3 * time.Second),
+		},
+		{
+			DoReturns: []DoReturn{
+				{0, ErrTest},
+				{0, ErrTest},
+				{0, ErrTest},
+				{0, ErrTest},
+				{0, ErrTest},
+				{2 * time.Second, ErrTest},
+				{0, nil},
+			},
+			Time: int64(7 * time.Second),
+		},
+		{
+			DoReturns: []DoReturn{
+				{0, ErrTest},
+				{0, ErrTest},
+				{0, ErrTest},
+				{0, ErrTest},
+				{0, ErrTest},
+				{0, nil},
+			},
+			Time: int64(5 * time.Second),
 		},
 	})
 }
@@ -51,7 +90,10 @@ func runTests(t *testing.T, tds []TestDescriptor) {
 			td.Decider = TestDecider
 		}
 
-		cl := &clock.MockClock{}
+		cl := &clock.MockClock{
+			AutoFastForward: true,
+		}
+
 		r := retry.NewWithClock(td.Backoff, td.Decider, cl)
 		fn := td.BuildDoFunction(t)
 
@@ -59,6 +101,17 @@ func runTests(t *testing.T, tds []TestDescriptor) {
 
 		if !errors.Is(err, td.Error) {
 			t.Fatalf("Test %d: errors mismatch, got %v, expected %v", i, err, td.Error)
+		}
+
+		if cl.Current != td.Time {
+			t.Fatalf(
+				"Test %d: clock time mismatch, got %v (%s), expected %v (%s)",
+				i,
+				cl.Current,
+				time.Duration(cl.Current).String(),
+				td.Time,
+				time.Duration(td.Time).String(),
+			)
 		}
 	}
 }
